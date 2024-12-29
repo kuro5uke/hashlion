@@ -86,7 +86,7 @@ if [[ ! "${modes[$user_input]}" ]]; then
             target="$unknown_hash"
 
             # Use hashid to identify the hash
-            hashid_output=$(hashid "$unknown_hash")
+            hashid_output=$(hashid -m "$unknown_hash")
             
             # Parse hashid output to extract detected hash types
             detected_hashes=($(parse_hashid_output "$hashid_output"))
