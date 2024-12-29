@@ -119,9 +119,22 @@ else
     echo "hashid is not installed. Please install hashid to identify hashes."
 fi
 
-# Ask for the target hash or file path (this was missing before!)
+# Ask for the target hash or file path
 echo "Enter the target hash (or file path):"
 read -r target
+
+# Validate hash or file path
+if [[ "$target" =~ ^[a-fA-F0-9]{32}$ ]]; then
+    # If it's a valid hash (e.g., MD5 format), continue
+    echo "Valid hash format entered."
+elif [[ -f "$target" ]]; then
+    # If it's a valid file path, continue
+    echo "Valid file path entered."
+else
+    # If neither a valid hash nor file path, exit
+    echo "Invalid hash format or file path. Exiting."
+    exit 1
+fi
 
 # Ask whether the entered target hash is still the target
 echo "Is the target hash '$target' still the target? (y/n)"
