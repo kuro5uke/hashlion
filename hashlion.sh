@@ -147,12 +147,6 @@ if [[ ! "$is_target_correct" =~ ^[Yy]$ ]]; then
     read -r target
 fi
 
-# Check if the target hash is valid (e.g., 32 hex characters for MD5)
-if [[ ! "$target" =~ ^[a-fA-F0-9]{32}$ ]]; then
-    echo "Invalid hash format. Exiting."
-    exit 1
-fi
-
 # Prompt user for attack mode
 echo "Enter attack mode (e.g., 0 for Straight, 1 for Combination, 3 for Brute-force, 6 for Hybrid Wordlist + Mask, 7 for Hybrid Mask + Wordlist):"
 read -r attack_mode
