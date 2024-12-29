@@ -67,53 +67,77 @@ hash_types
 echo "Enter a hash type number to get the associated mode:"
 read -r user_input
 
-# Validate hash type input
-if [[ ! "${modes[$user_input]}" ]]; then
+# Validate hash type input in a loop until a valid one is provided
+while [[ -z "${modes[$user_input]}" ]]; do
     echo "Error: Invalid hash type number entered."
+    echo "Enter target hash"
+    read -r target
+    hashid -m $target
+    echo "Please enter a valid hash type number to get the associated mode:"
+    read -r user_input
+done
 
-    # Check if hashid is installed
-    if check_hashid_installed; then
-        # Prompt user to use hashid to identify the hash
-        echo "Would you like to use hashid to identify the hash? (y/n)"
-        read -r use_hashid
+# Check if hashid is installed
+if check_hashid_installed; then
+    # Prompt user to use hashid to identify the hash
+    echo "Would you like to use hashid to identify the hash? (y/n)"
+    read -r use_hashid
 
-        if [[ "$use_hashid" =~ ^[Yy]$ ]]; then
-            # Prompt user to enter the unknown hash
-            echo "Enter the hash to identify:"
-            read -r unknown_hash
+    if [[ "$use_hashid" =~ ^[Yy]$ ]]; then
+        # Prompt user to enter the unknown hash
+        echo "Enter the hash to identify:"
+        read -r unknown_hash
 
-            # Save the target hash from the user input
-            target="$unknown_hash"
+        # Save the target hash from the user input
+        target="$unknown_hash"
 
-            # Use hashid to identify the hash
-            hashid_output=$(hashid "$unknown_hash")
-            
-            # Parse hashid output to extract detected hash types
-            detected_hashes=($(parse_hashid_output "$hashid_output"))
+        # Use hashid to identify the hash
+        hashid_output=$(hashid -m "$unknown_hash")
+        
+        # Parse hashid output to extract detected hash types
+        detected_hashes=($(parse_hashid_output "$hashid_output"))
 
-            if [[ ${#detected_hashes[@]} -gt 0 ]]; then
-                echo "Detected hash types: ${detected_hashes[@]}"
-                # Check if any of the detected hash types match the ones in hash_modes.txt
-                for hash_type in "${detected_hashes[@]}"; do
-                    # Look for the hash type in the modes array and print the associated mode number
-                    for mode in "${!modes[@]}"; do
-                        if [[ "${modes[$mode]}" == "$hash_type" ]]; then
-                            echo "Mode for $hash_type: $mode"
-                        fi
-                    done
+        if [[ ${#detected_hashes[@]} -gt 0 ]]; then
+            echo "Detected hash types: ${detected_hashes[@]}"
+            # Check if any of the detected hash types match the ones in hash_modes.txt
+            for hash_type in "${detected_hashes[@]}"; do
+                # Look for the hash type in the modes array and print the associated mode number
+                for mode in "${!modes[@]}"; do
+                    if [[ "${modes[$mode]}" == "$hash_type" ]]; then
+                        echo "Mode for $hash_type: $mode"
+                    fi
                 done
-            else
-                echo "No hash types detected by hashid."
-            fi
+            done
         else
-            echo "Exiting. No hashid identification performed."
+            echo "No hash types detected by hashid."
         fi
     else
-        echo "hashid is not installed. Please install hashid to identify hashes."
+        # Do nothing and continue with the rest of the script if the user does not want to use hashid
+        :
     fi
 else
-    # Set target hash directly from user input if it's valid
-    target="$user_input"
+    echo "hashid is not installed. Please install hashid to identify hashes."
+fi
+
+# Ask for the target hash or file path (this was missing before!)
+echo "Enter the target hash (or file path):"
+read -r target
+
+# Ask whether the entered target hash is still the target
+echo "Is the target hash '$target' still the target? (y/n)"
+read -r is_target_correct
+
+# If the target is not correct, prompt the user to enter a new one
+if [[ ! "$is_target_correct" =~ ^[Yy]$ ]]; then
+    # If the user says 'no', ask for the updated target hash
+    echo "Enter the updated target hash (or file path):"
+    read -r target
+fi
+
+# Check if the target hash is valid (e.g., 32 hex characters for MD5)
+if [[ ! "$target" =~ ^[a-fA-F0-9]{32}$ ]]; then
+    echo "Invalid hash format. Exiting."
+    exit 1
 fi
 
 # Prompt user for attack mode
@@ -126,43 +150,53 @@ if ! [[ "$attack_mode" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
-# Ask for the target hash or file path (this was missing before!)
-echo "Enter the target hash (or file path):"
-read -r target
-
-# Check if the target hash is valid
-if [[ ! "$target" =~ ^[a-fA-F0-9]{32}$ ]]; then
-    echo "Invalid hash format. Exiting."
-    exit 1
-fi
-
-# Ask for wordlist or mask depending on attack mode
+# Ask for wordlist or dictionaries depending on attack mode
 case "$attack_mode" in
     0)  # Wordlist attack
-        echo "Enter wordlist or dictionaries (space separated if multiple):"
+        echo "Enter wordlist or dictionaries (space separated if multiple, or press Enter to use default '/usr/share/wordlists/rockyou.txt'):"
         read -r wordlist
+        # Default to rockyou.txt if no input is provided
+        if [[ -z "$wordlist" ]]; then
+            wordlist="/usr/share/wordlists/rockyou.txt"
+        fi
         ;;
     1)  # Combination attack (two dictionaries)
-        echo "Enter the first dictionary:"
+        echo "Enter the first dictionary (or press Enter to use default '/usr/share/wordlists/rockyou.txt'):"
         read -r dict1
-        echo "Enter the second dictionary:"
+        # Default to rockyou.txt if no input is provided
+        if [[ -z "$dict1" ]]; then
+            dict1="/usr/share/wordlists/rockyou.txt"
+        fi
+        echo "Enter the second dictionary (or press Enter to use default '/usr/share/wordlists/rockyou.txt'):"
         read -r dict2
+        # Default to rockyou.txt if no input is provided
+        if [[ -z "$dict2" ]]; then
+            dict2="/usr/share/wordlists/rockyou.txt"
+        fi
         ;;
     3)  # Brute-force attack (mask)
         echo "Enter the brute-force mask (e.g., ?l?l?l?l for 4 lowercase letters):"
         read -r mask
         ;;
     6)  # Hybrid Wordlist + Mask attack
-        echo "Enter wordlist:"
+        echo "Enter wordlist (or press Enter to use default '/usr/share/wordlists/rockyou.txt'):"
         read -r wordlist
+        # Default to rockyou.txt if no input is provided
+        if [[ -z "$wordlist" ]]; then
+            wordlist="/usr/share/wordlists/rockyou.txt"
+        fi
         echo "Enter mask (e.g., ?d?d?d?d for 4 digits):"
         read -r mask
         ;;
     7)  # Hybrid Mask + Wordlist attack
         echo "Enter mask (e.g., ?d?d?d?d for 4 digits):"
         read -r mask
-        echo "Enter wordlist:"
+        echo "Enter wordlist (or press Enter to use default '/usr/share/wordlists/rockyou.txt'):"
         read -r wordlist
+        # Default to rockyou.txt if no input is provided
+        if [[ -z "$wordlist" ]]; then
+            wordlist="/usr/share/wordlists/rockyou.txt"
+        fi
         ;;
     9)  # Association attack (requires additional setup)
         echo "Association attack is complex and requires additional setup. Exiting."
@@ -205,6 +239,4 @@ else
     hashcat_command="hashcat -a $attack_mode -m $user_input $target $wordlist $rules_option"
 fi
 
-# Output the final command and run it
-echo "Running command: $hashcat_command"
 $hashcat_command
